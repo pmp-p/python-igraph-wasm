@@ -34,16 +34,26 @@ from time import sleep
 from typing import List, Iterable, Iterator, Optional, Tuple, TypeVar, Union
 
 ###########################################################################
+import sysconfig
+if sysconfig.get_config_var('HOST_GNU_TYPE').startswith('wasm'):
+    # it is very unlikely that wheel is used to build from inside browser
+    SKIP_HEADER_INSTALL = True
+    # data path should match install prefix in this particular case
+    data_path = sysconfig.get_paths()['data']
+    LIBIGRAPH_FALLBACK_INCLUDE_DIRS = [f"{data_path}/include/igraph"]
+    LIBIGRAPH_FALLBACK_LIBRARY_DIRS = [f"{data_path}/lib"]
+else:
+    # Check whether we are compiling for PyPy. Headers will not be installed
+    # for PyPy.
+    SKIP_HEADER_INSTALL = (platform.python_implementation() == "PyPy") or (
+        "SKIP_HEADER_INSTALL" in os.environ
+    )
+    LIBIGRAPH_FALLBACK_INCLUDE_DIRS = ["/usr/include/igraph", "/usr/local/include/igraph"]
+    LIBIGRAPH_FALLBACK_LIBRARY_DIRS = []
 
-LIBIGRAPH_FALLBACK_INCLUDE_DIRS = ["/usr/include/igraph", "/usr/local/include/igraph"]
 LIBIGRAPH_FALLBACK_LIBRARIES = ["igraph"]
-LIBIGRAPH_FALLBACK_LIBRARY_DIRS = []
 
-# Check whether we are compiling for PyPy. Headers will not be installed
-# for PyPy.
-SKIP_HEADER_INSTALL = (platform.python_implementation() == "PyPy") or (
-    "SKIP_HEADER_INSTALL" in os.environ
-)
+
 
 ###########################################################################
 
@@ -250,7 +260,7 @@ class IgraphCCoreCMakeBuilder:
 
         # No need to build tests
         args.append("-DBUILD_TESTING=OFF")
-        
+
         # Set install directory during config step instead of install step in order
         # to avoid having the architecture name in the LIBPATH (e.g. lib/x86_64-linux-gnu)
         args.append("-DCMAKE_INSTALL_PREFIX=" + str(install_folder))
